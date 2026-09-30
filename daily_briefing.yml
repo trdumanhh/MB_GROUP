@@ -1,0 +1,46 @@
+name: MB Group Financial Intelligence - Daily Update & Briefing
+
+on:
+  schedule:
+    # Tự động chạy mỗi ngày lúc 01:05 UTC = 08:05 Sáng (Giờ Việt Nam)
+    - cron: '5 1 * * *'
+  workflow_dispatch: # Cho phép bấm nút chạy thử nghiệm thủ công
+  repository_dispatch:
+    types: [power_automate] # Chỉ nhận lệnh từ Power Automate, bỏ qua các sự kiện của Vercel
+
+permissions:
+  contents: write
+
+jobs:
+  daily-update-and-broadcast:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🐍 Cài đặt Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 📦 Cài đặt thư viện phụ thuộc
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests httpx
+
+      - name: 🚀 Chạy Pipeline Cào tin tức & Phân tích AI & Gửi Teams
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python scripts/daily_pipeline.py
+
+      - name: 🌐 Tự động Commit & Push lên GitHub (Kích hoạt Vercel Deploy)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Auto-update daily financial intelligence & dashboard [skip ci]" || echo "Khong co thay doi."
+          git push origin main || echo "Bo qua push neu khong co thay doi."
